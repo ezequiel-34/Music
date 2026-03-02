@@ -1,0 +1,262 @@
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reina Lejana - Romántico Reggaetón</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            position: relative;
+            touch-action: manipulation; /* Mejora touch en móviles */
+        }
+        #intro {
+            text-align: center;
+            z-index: 10;
+        }
+        #intro h1 {
+            font-size: 2em;
+            color: #ff69b4; /* Rosa romántico */
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        #play-btn {
+            font-size: 6em;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: transform 0.3s;
+        }
+        #play-btn:hover, #play-btn:active {
+            transform: scale(1.15);
+        }
+        #lyrics-container {
+            display: none;
+            text-align: center;
+            font-size: 1.6em;
+            white-space: pre-wrap;
+            max-width: 85%;
+            z-index: 10;
+            line-height: 1.4;
+        }
+        .highlight {
+            color: #ff69b4;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ff69b4;
+        }
+        #equalizer {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            z-index: 5;
+        }
+        .bar {
+            width: 12px;
+            height: 0;
+            background: linear-gradient(to top, #ff69b4, #ff1493);
+            margin: 0 4px;
+            border-radius: 6px 6px 0 0;
+            transition: height 0.08s ease-out;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="intro">
+        <h1>Toca para reproducir el audio</h1>
+        <div id="play-btn">🎧</div>
+    </div>
+    <div id="lyrics-container"></div>
+    <div id="equalizer">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </div>
+    <canvas id="particles"></canvas>
+
+    <!-- Audio local en la misma carpeta -->
+    <audio id="audio" src="musica.mp3" preload="auto"></audio>
+
+    <script>
+        const audio = document.getElementById('audio');
+        const playBtn = document.getElementById('play-btn');
+        const intro = document.getElementById('intro');
+        const lyricsContainer = document.getElementById('lyrics-container');
+        const equalizer = document.getElementById('equalizer');
+        const canvas = document.getElementById('particles');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Letras con timestamps aproximados (ajusta según duración real de musica.mp3)
+        const lyrics = [
+            { time: 0, text: "Reina... lejana... pero tan cerca en mi mente...\n" },
+            { time: 5, text: "Ansias que no paran... vení...\n" },
+            { time: 10, text: "De lejos te veo, en la pantalla tu luz,\n" },
+            { time: 15, text: "Tu mirada me quema, me deja sin cruz.\n" },
+            { time: 20, text: "La distancia es un fuego que no se apaga,\n" },
+            { time: 25, text: "Cada mensaje tuyo me salva la alma.\n" },
+            { time: 30, text: "De cerca eras todo, besos que encienden,\n" },
+            { time: 35, text: "Ahora solo sueños, pero el amor no se vende.\n" },
+            { time: 40, text: "Ansiedad en el pecho, loco por tocarte,\n" },
+            { time: 45, text: "Pero suave te digo: no voy a soltarte.\n" },
+            { time: 50, text: "¡Mi reina lejana! Ven a mis brazos ya,\n" },
+            { time: 55, text: "De lejos te amo, de cerca te extrañá.\n" },
+            { time: 60, text: "No hay diferencia, sos mi obsesión,\n" },
+            { time: 65, text: "Suave en la piel, loca pasión.\n" },
+            { time: 70, text: "¡Reina, reina! Ansias que me matan,\n" },
+            { time: 75, text: "Sexy en la noche, romántica en calma.\n" },
+            { time: 80, text: "Cerca o lejos, sos mi reina eterna,\n" },
+            { time: 85, text: "Con vos todo brilla, mi vida se gobierna.\n" },
+            { time: 90, text: "Imaginando tu cuerpo bailando en mi mente,\n" },
+            { time: 95, text: "Curvas que llaman, sudor que se siente.\n" },
+            // Agrega o ajusta más líneas según la duración real (usa un reproductor para ver segundos)
+            { time: 180, text: "Mi reina lejana... de lejos te amo...\n" }
+        ];
+
+        let currentLine = 0;
+        let particles = [];
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 25 + 15;
+                this.speedY = Math.random() * 2.5 + 1;
+                this.opacity = 1;
+                this.isStar = false;
+            }
+            update() {
+                this.y += this.speedY;
+                if (this.y > canvas.height + this.size) this.y = -this.size;
+                if (this.isStar) this.opacity -= 0.015;
+            }
+            draw() {
+                ctx.globalAlpha = this.opacity;
+                ctx.font = `${this.size}px Arial`;
+                ctx.fillText('❤️', this.x, this.y); // ❤️ como coronita romántica
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // Coronitas cayendo de fondo
+        for (let i = 0; i < 25; i++) {
+            particles.push(new Particle(Math.random() * canvas.width, Math.random() * canvas.height));
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, i) => {
+                p.update();
+                p.draw();
+                if (p.isStar && p.opacity <= 0) particles.splice(i, 1);
+            });
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        // Destello al tocar pantalla (móvil/PC)
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            for (let touch of e.touches) {
+                for (let i = 0; i < 12; i++) {
+                    let p = new Particle(touch.clientX, touch.clientY);
+                    p.isStar = true;
+                    p.speedY = Math.random() * 4 - 2; // Puede ir para arriba/abajo
+                    particles.push(p);
+                }
+            }
+        }, { passive: false });
+
+        document.addEventListener('click', (e) => {
+            for (let i = 0; i < 12; i++) {
+                let p = new Particle(e.clientX, e.clientY);
+                p.isStar = true;
+                particles.push(p);
+            }
+        });
+
+        // Ecualizador
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioCtx.createMediaElementSource(audio);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        const bars = document.querySelectorAll('.bar');
+
+        function animateEqualizer() {
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(dataArray);
+            bars.forEach((bar, i) => {
+                const value = dataArray[i * 3] || 0; // Espaciar un poco
+                bar.style.height = `${(value / 255) * 120}px`;
+            });
+            requestAnimationFrame(animateEqualizer);
+        }
+
+        // Sincronizar letras (letra por letra con highlight)
+        function syncLyrics() {
+            const time = audio.currentTime;
+            while (currentLine < lyrics.length && time >= lyrics[currentLine].time) {
+                const line = lyrics[currentLine].text;
+                let index = 0;
+                const interval = setInterval(() => {
+                    if (index < line.length) {
+                        const span = document.createElement('span');
+                        span.textContent = line[index];
+                        if (Math.random() > 0.4) span.classList.add('highlight'); // Variado
+                        lyricsContainer.appendChild(span);
+                        index++;
+                    } else {
+                        clearInterval(interval);
+                        lyricsContainer.innerHTML += '<br>';
+                        currentLine++;
+                    }
+                }, 60); // Velocidad de aparición (ajusta si va muy rápido/lento)
+            }
+            requestAnimationFrame(syncLyrics);
+        }
+
+        // Iniciar al tocar el auricular
+        playBtn.addEventListener('click', () => {
+            audio.play().catch(err => console.log("Error play:", err)); // Para políticas de autoplay en móviles
+            intro.style.display = 'none';
+            lyricsContainer.style.display = 'block';
+            equalizer.style.display = 'flex';
+            animateEqualizer();
+            syncLyrics();
+        });
+
+        // Resize canvas
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+  </html>

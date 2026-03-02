@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -83,24 +84,6 @@
             font-weight: bold;
             text-shadow: 0 0 15px #ff69b4;
         }
-        #equalizer {
-            position: absolute;
-            bottom: 40px;
-            width: 100%;
-            height: 160px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-            z-index: 5;
-        }
-        .bar {
-            width: 16px;
-            height: 0;
-            background: linear-gradient(#ff1493, #ff69b4);
-            margin: 0 6px;
-            border-radius: 8px 8px 0 0;
-            transition: height 0.12s;
-        }
         canvas {
             position: absolute;
             inset: 0;
@@ -118,10 +101,6 @@
 
     <div id="main-content">
         <div id="lyrics-container"></div>
-        <div id="equalizer">
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-        </div>
     </div>
 
     <canvas id="particles"></canvas>
@@ -133,24 +112,39 @@
         const mainContent = document.getElementById('main-content');
         const status = document.getElementById('status');
         const lyricsContainer = document.getElementById('lyrics-container');
-        const equalizer = document.getElementById('equalizer');
         const canvas = document.getElementById('particles');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
         let audioCtx = null;
-        let analyser = null;
         let particles = [];
         let allowTouchParticles = false;
         let currentLine = 0;
 
-        // Letras (completa con tiempos reales de tu canción)
+        // Letras (completa con tiempos reales de tu canción para sync perfecto)
         const lyrics = [
             { time: 0, text: "Reina... lejana... pero tan cerca en mi mente...\n" },
             { time: 5, text: "Ansias que no paran... vení...\n" },
             { time: 10, text: "De lejos te veo, en la pantalla tu luz,\n" },
-            // AGREGA AQUÍ TODAS LAS LÍNEAS QUE FALTAN CON SUS TIEMPOS
+            { time: 15, text: "Tu mirada me quema, me deja sin cruz.\n" },
+            { time: 20, text: "La distancia es un fuego que no se apaga,\n" },
+            { time: 25, text: "Cada mensaje tuyo me salva la alma.\n" },
+            { time: 30, text: "De cerca eras todo, besos que encienden,\n" },
+            { time: 35, text: "Ahora solo sueños, pero el amor no se vende.\n" },
+            { time: 40, text: "Ansiedad en el pecho, loco por tocarte,\n" },
+            { time: 45, text: "Pero suave te digo: no voy a soltarte.\n" },
+            { time: 50, text: "¡Mi reina lejana! Ven a mis brazos ya,\n" },
+            { time: 55, text: "De lejos te amo, de cerca te extrañá.\n" },
+            { time: 60, text: "No hay diferencia, sos mi obsesión,\n" },
+            { time: 65, text: "Suave en la piel, loca pasión.\n" },
+            { time: 70, text: "¡Reina, reina! Ansias que me matan,\n" },
+            { time: 75, text: "Sexy en la noche, romántica en calma.\n" },
+            { time: 80, text: "Cerca o lejos, sos mi reina eterna,\n" },
+            { time: 85, text: "Con vos todo brilla, mi vida se gobierna.\n" },
+            { time: 90, text: "Imaginando tu cuerpo bailando en mi mente,\n" },
+            { time: 95, text: "Curvas que llaman, sudor que se siente.\n" },
+            // Agrega el resto si la canción es más larga, ajustando tiempos
             { time: 180, text: "Mi reina lejana... de lejos te amo...\n" }
         ];
 
@@ -165,7 +159,7 @@
             }
             update() {
                 this.y += this.speedY;
-                if (this.y > canvas.height + this.size) this.y = -this.size;
+                if (this.y > canvas.height + this.size) this.y = -this.size; // Caen desde arriba y reinician
                 if (this.isStar) this.opacity -= 0.018;
             }
             draw() {
@@ -177,7 +171,7 @@
         }
 
         for (let i = 0; i < 30; i++) {
-            particles.push(new Particle(Math.random() * canvas.width, Math.random() * canvas.height));
+            particles.push(new Particle(Math.random() * canvas.width, Math.random() * -canvas.height)); // Empiezan arriba
         }
 
         function animateParticles() {
@@ -214,24 +208,8 @@
         function initAudioContext() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 256;
-                const source = audioCtx.createMediaElementSource(audio);
-                source.connect(analyser);
-                analyser.connect(audioCtx.destination);
             }
             return audioCtx.resume().catch(() => {});
-        }
-
-        const bars = document.querySelectorAll('.bar');
-        function animateEq() {
-            if (!analyser) return;
-            const data = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(data);
-            bars.forEach((bar, i) => {
-                bar.style.height = `${(data[i * 4] || 0) / 2}px`;  // Más suave
-            });
-            requestAnimationFrame(animateEq);
         }
 
         function showLyrics() {
@@ -251,13 +229,13 @@
                         lyricsContainer.innerHTML += '<br>';
                         currentLine++;
                     }
-                }, 55);
+                }, 55); // Ajusta para ritmo (más bajo = más rápido)
             }
             requestAnimationFrame(showLyrics);
         }
 
         function startEverything() {
-            // Ocultar intro YA MISMO
+            // Ocultar intro inmediatamente al tocar
             intro.classList.add('hidden');
             mainContent.style.display = 'flex';
 
@@ -265,25 +243,27 @@
             audio.play().then(() => {
                 status.style.display = 'none';
                 allowTouchParticles = true;
-                animateEq();
                 showLyrics();
             }).catch(err => {
                 console.log(err);
-                status.textContent = "Toca de nuevo si no avanza – mantén presionado 1 seg";
+                intro.classList.remove('hidden');
+                mainContent.style.display = 'none';
+                status.textContent = "Toca de nuevo – Android necesita confirmación";
                 status.style.display = 'block';
             });
         }
 
-        // Triggers simples y múltiples
+        // Triggers
         document.getElementById('play-btn').addEventListener('touchstart', startEverything);
         intro.addEventListener('touchstart', startEverything);
         intro.addEventListener('click', startEverything);
 
-        // Backup: si suena aunque no ocultó
+        // Backup si suena sin ocultar
         audio.addEventListener('playing', () => {
             intro.classList.add('hidden');
             mainContent.style.display = 'flex';
             allowTouchParticles = true;
+            showLyrics();
         });
 
         window.addEventListener('resize', () => {

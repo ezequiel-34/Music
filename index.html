@@ -11,97 +11,99 @@
             color: #fff;
             font-family: Arial, sans-serif;
             overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
             height: 100vh;
             position: relative;
             touch-action: manipulation;
         }
         #intro {
-            text-align: center;
-            z-index: 10;
-            width: 100%;
-            height: 100%;
+            position: absolute;
+            inset: 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            transition: opacity 0.5s ease;
+            background: #000;
+            z-index: 20;
+            transition: opacity 0.4s ease-out;
         }
         #intro.hidden {
             opacity: 0;
             pointer-events: none;
         }
-        #intro h1 {
-            font-size: 2.2em;
+        h1 {
+            font-size: 2.3em;
             color: #ff69b4;
             animation: pulse 2s infinite;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            padding: 0 20px;
         }
         @keyframes pulse {
-            0% { transform: scale(1); }
+            0%, 100% { transform: scale(1); }
             50% { transform: scale(1.08); }
-            100% { transform: scale(1); }
         }
         #play-btn {
-            font-size: 8em;
+            font-size: 9em;
             cursor: pointer;
-            transition: transform 0.3s;
+            transition: transform 0.2s;
         }
         #play-btn:active {
-            transform: scale(1.3);
+            transform: scale(1.25);
         }
         #status {
-            font-size: 1.3em;
+            font-size: 1.4em;
             color: #ff69b4;
-            margin-top: 30px;
-            padding: 10px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 10px;
+            margin-top: 40px;
+            padding: 15px;
+            background: rgba(255,105,180,0.15);
+            border-radius: 12px;
             display: none;
+            max-width: 80%;
+            text-align: center;
+        }
+        #main-content {
+            position: absolute;
+            inset: 0;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
         }
         #lyrics-container {
-            display: none;
+            font-size: 1.7em;
             text-align: center;
-            font-size: 1.6em;
             white-space: pre-wrap;
-            max-width: 90%;
-            z-index: 10;
+            max-width: 92%;
             line-height: 1.5;
-            position: relative;
+            padding: 20px;
         }
         .highlight {
             color: #ff69b4;
             font-weight: bold;
-            text-shadow: 0 0 12px #ff69b4;
+            text-shadow: 0 0 15px #ff69b4;
         }
         #equalizer {
-            display: none;
             position: absolute;
-            bottom: 30px;
+            bottom: 40px;
             width: 100%;
-            height: 140px;
+            height: 160px;
             display: flex;
             justify-content: center;
             align-items: flex-end;
             z-index: 5;
         }
         .bar {
-            width: 14px;
+            width: 16px;
             height: 0;
-            background: linear-gradient(to top, #ff69b4, #ff1493);
-            margin: 0 5px;
-            border-radius: 7px 7px 0 0;
-            transition: height 0.1s ease-out;
+            background: linear-gradient(#ff1493, #ff69b4);
+            margin: 0 6px;
+            border-radius: 8px 8px 0 0;
+            transition: height 0.12s;
         }
         canvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             z-index: 5;
             pointer-events: none;
         }
@@ -109,22 +111,26 @@
 </head>
 <body>
     <div id="intro">
-        <h1>Toca el auricular o la pantalla para reproducir</h1>
+        <h1>Toca el auricular para reproducir</h1>
         <div id="play-btn">🎧</div>
         <div id="status"></div>
     </div>
-    <div id="lyrics-container"></div>
-    <div id="equalizer">
-        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-    </div>
-    <canvas id="particles"></canvas>
 
+    <div id="main-content">
+        <div id="lyrics-container"></div>
+        <div id="equalizer">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+    </div>
+
+    <canvas id="particles"></canvas>
     <audio id="audio" src="musica.mp3" preload="auto"></audio>
 
     <script>
         const audio = document.getElementById('audio');
         const intro = document.getElementById('intro');
+        const mainContent = document.getElementById('main-content');
         const status = document.getElementById('status');
         const lyricsContainer = document.getElementById('lyrics-container');
         const equalizer = document.getElementById('equalizer');
@@ -135,34 +141,32 @@
 
         let audioCtx = null;
         let analyser = null;
-        let source = null;
         let particles = [];
         let allowTouchParticles = false;
+        let currentLine = 0;
 
-        // Letras - completa con tus tiempos reales para que sync bien
+        // Letras (completa con tiempos reales de tu canción)
         const lyrics = [
             { time: 0, text: "Reina... lejana... pero tan cerca en mi mente...\n" },
             { time: 5, text: "Ansias que no paran... vení...\n" },
             { time: 10, text: "De lejos te veo, en la pantalla tu luz,\n" },
-            { time: 15, text: "Tu mirada me quema, me deja sin cruz.\n" },
-            // ... agrega TODAS las líneas que faltan ...
+            // AGREGA AQUÍ TODAS LAS LÍNEAS QUE FALTAN CON SUS TIEMPOS
             { time: 180, text: "Mi reina lejana... de lejos te amo...\n" }
         ];
-        let currentLine = 0;
 
         class Particle {
-            constructor(x, y) {
+            constructor(x, y, isStar = false) {
                 this.x = x;
                 this.y = y;
-                this.size = Math.random() * 25 + 15;
-                this.speedY = Math.random() * 2.5 + 1;
+                this.size = Math.random() * 28 + 16;
+                this.speedY = Math.random() * 3 + 1.5;
                 this.opacity = 1;
-                this.isStar = false;
+                this.isStar = isStar;
             }
             update() {
                 this.y += this.speedY;
                 if (this.y > canvas.height + this.size) this.y = -this.size;
-                if (this.isStar) this.opacity -= 0.015;
+                if (this.isStar) this.opacity -= 0.018;
             }
             draw() {
                 ctx.globalAlpha = this.opacity;
@@ -172,44 +176,47 @@
             }
         }
 
-        for (let i = 0; i < 25; i++) {
+        for (let i = 0; i < 30; i++) {
             particles.push(new Particle(Math.random() * canvas.width, Math.random() * canvas.height));
         }
 
         function animateParticles() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach((p, i) => {
+            particles = particles.filter(p => {
                 p.update();
                 p.draw();
-                if (p.isStar && p.opacity <= 0) particles.splice(i, 1);
+                return !p.isStar || p.opacity > 0;
             });
             requestAnimationFrame(animateParticles);
         }
         animateParticles();
 
-        function addTouchParticles(e) {
+        function addStarBurst(x, y) {
             if (!allowTouchParticles) return;
-            e.preventDefault();
-            const touches = e.touches || [{clientX: e.clientX, clientY: e.clientY}];
-            for (let touch of touches) {
-                for (let i = 0; i < 12; i++) {
-                    let p = new Particle(touch.clientX, touch.clientY);
-                    p.isStar = true;
-                    p.speedY = Math.random() * 4 - 2;
-                    particles.push(p);
-                }
+            for (let i = 0; i < 14; i++) {
+                let p = new Particle(x, y, true);
+                p.speedY = Math.random() * 5 - 2.5;
+                particles.push(p);
             }
         }
 
-        document.addEventListener('touchstart', addTouchParticles, { passive: false });
-        document.addEventListener('click', addTouchParticles);
+        document.addEventListener('touchstart', e => {
+            if (allowTouchParticles) {
+                e.preventDefault();
+                [...e.touches].forEach(t => addStarBurst(t.clientX, t.clientY));
+            }
+        }, { passive: false });
 
-        function initAudio() {
+        document.addEventListener('click', e => {
+            if (allowTouchParticles) addStarBurst(e.clientX, e.clientY);
+        });
+
+        function initAudioContext() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioCtx.createAnalyser();
                 analyser.fftSize = 256;
-                source = audioCtx.createMediaElementSource(audio);
+                const source = audioCtx.createMediaElementSource(audio);
                 source.connect(analyser);
                 analyser.connect(audioCtx.destination);
             }
@@ -217,78 +224,65 @@
         }
 
         const bars = document.querySelectorAll('.bar');
-        function animateEqualizer() {
+        function animateEq() {
             if (!analyser) return;
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(dataArray);
+            const data = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(data);
             bars.forEach((bar, i) => {
-                const value = dataArray[i * 3] || 0;
-                bar.style.height = `${(value / 255) * 140}px`;
+                bar.style.height = `${(data[i * 4] || 0) / 2}px`;  // Más suave
             });
-            requestAnimationFrame(animateEqualizer);
+            requestAnimationFrame(animateEq);
         }
 
-        function syncLyrics() {
-            const time = audio.currentTime;
-            while (currentLine < lyrics.length && time >= lyrics[currentLine].time) {
+        function showLyrics() {
+            const t = audio.currentTime;
+            while (currentLine < lyrics.length && t >= lyrics[currentLine].time) {
                 const line = lyrics[currentLine].text;
-                let index = 0;
-                const interval = setInterval(() => {
-                    if (index < line.length) {
-                        const span = document.createElement('span');
-                        span.textContent = line[index];
-                        if (Math.random() > 0.4) span.classList.add('highlight');
-                        lyricsContainer.appendChild(span);
-                        index++;
+                let i = 0;
+                const int = setInterval(() => {
+                    if (i < line.length) {
+                        const s = document.createElement('span');
+                        s.textContent = line[i];
+                        if (Math.random() > 0.5) s.classList.add('highlight');
+                        lyricsContainer.appendChild(s);
+                        i++;
                     } else {
-                        clearInterval(interval);
+                        clearInterval(int);
                         lyricsContainer.innerHTML += '<br>';
                         currentLine++;
                     }
-                }, 60);  // Ajusta este 60 si las letras aparecen muy rápido/lento
+                }, 55);
             }
-            requestAnimationFrame(syncLyrics);
+            requestAnimationFrame(showLyrics);
         }
 
-        async function startPlayback() {
-            status.style.display = 'none';
-            try {
-                await initAudio();
-                const playPromise = audio.play();
-                
-                // ¡Forzamos ocultar intro INMEDIATAMENTE!
-                intro.classList.add('hidden');
-                lyricsContainer.style.display = 'block';
-                equalizer.style.display = 'flex';
+        function startEverything() {
+            // Ocultar intro YA MISMO
+            intro.classList.add('hidden');
+            mainContent.style.display = 'flex';
+
+            initAudioContext();
+            audio.play().then(() => {
+                status.style.display = 'none';
                 allowTouchParticles = true;
-                animateEqualizer();
-                syncLyrics();  // Iniciamos el loop de letras ya
-
-                await playPromise;  // Esperamos confirmación del play
-
-                // Por si acaso, chequeamos que esté realmente reproduciendo
-                if (audio.paused) {
-                    throw new Error("Audio paused after play");
-                }
-            } catch (err) {
-                console.log('Error en play:', err);
-                intro.classList.remove('hidden');  // Volvemos a mostrar si falla
-                status.textContent = "Toca otra vez – Chrome a veces necesita un segundo intento";
+                animateEq();
+                showLyrics();
+            }).catch(err => {
+                console.log(err);
+                status.textContent = "Toca de nuevo si no avanza – mantén presionado 1 seg";
                 status.style.display = 'block';
-                setTimeout(() => audio.play().catch(() => {}), 400);
-            }
+            });
         }
 
-        // Triggers
-        intro.addEventListener('touchstart', startPlayback, { once: false });  // Permitimos múltiples toques
-        intro.addEventListener('click', startPlayback, { once: false });
-        document.getElementById('play-btn').addEventListener('touchstart', startPlayback, { once: false });
+        // Triggers simples y múltiples
+        document.getElementById('play-btn').addEventListener('touchstart', startEverything);
+        intro.addEventListener('touchstart', startEverything);
+        intro.addEventListener('click', startEverything);
 
-        // Backup: si la música empieza a sonar sin que ocultemos (raro), forzamos ocultar
+        // Backup: si suena aunque no ocultó
         audio.addEventListener('playing', () => {
             intro.classList.add('hidden');
-            lyricsContainer.style.display = 'block';
-            equalizer.style.display = 'flex';
+            mainContent.style.display = 'flex';
             allowTouchParticles = true;
         });
 

@@ -103,7 +103,7 @@
 </head>
 <body>
     <div id="intro">
-        <h1>Toca el auricular o cualquier parte para reproducir</h1>
+        <h1>Toca el auricular o la pantalla para reproducir</h1>
         <div id="play-btn">🎧</div>
         <div id="status"></div>
     </div>
@@ -130,16 +130,17 @@
         let audioCtx = null;
         let analyser = null;
         let source = null;
+        let particles = [];
+        let allowTouchParticles = false;  // Solo true después de reproducir
 
-        // Letras (agrega el resto si querés sync perfecto)
+        // Letras (completa con tus tiempos reales)
         const lyrics = [
             { time: 0, text: "Reina... lejana... pero tan cerca en mi mente...\n" },
             { time: 5, text: "Ansias que no paran... vení...\n" },
-            // Agrega las demás líneas con sus tiempos aproximados
+            // ... agrega el resto aquí ...
             { time: 180, text: "Mi reina lejana... de lejos te amo...\n" }
         ];
         let currentLine = 0;
-        let particles = [];
 
         class Particle {
             constructor(x, y) {
@@ -163,6 +164,7 @@
             }
         }
 
+        // Coronitas cayendo siempre de fondo
         for (let i = 0; i < 25; i++) {
             particles.push(new Particle(Math.random() * canvas.width, Math.random() * canvas.height));
         }
@@ -178,10 +180,12 @@
         }
         animateParticles();
 
-        // Destellos al tocar (funciona en cualquier momento)
-        document.addEventListener('touchstart', (e) => {
+        // Destellos SOLO cuando allowTouchParticles = true (después de reproducir)
+        function addTouchParticles(e) {
+            if (!allowTouchParticles) return;
             e.preventDefault();
-            for (let touch of e.touches) {
+            const touches = e.touches || [{clientX: e.clientX, clientY: e.clientY}];
+            for (let touch of touches) {
                 for (let i = 0; i < 12; i++) {
                     let p = new Particle(touch.clientX, touch.clientY);
                     p.isStar = true;
@@ -189,17 +193,12 @@
                     particles.push(p);
                 }
             }
-        }, { passive: false });
+        }
 
-        document.addEventListener('click', (e) => {
-            for (let i = 0; i < 12; i++) {
-                let p = new Particle(e.clientX, e.clientY);
-                p.isStar = true;
-                particles.push(p);
-            }
-        });
+        document.addEventListener('touchstart', addTouchParticles, { passive: false });
+        document.addEventListener('click', addTouchParticles);
 
-        // Inicializar AudioContext SOLO después de interacción
+        // Inicializar AudioContext
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -209,7 +208,7 @@
                 source.connect(analyser);
                 analyser.connect(audioCtx.destination);
             }
-            return audioCtx.resume().catch(() => console.log('Resume falló, pero continuamos'));
+            return audioCtx.resume().catch(() => {});
         }
 
         const bars = document.querySelectorAll('.bar');
@@ -249,26 +248,24 @@
         async function startPlayback() {
             status.style.display = 'none';
             try {
-                await initAudio();  // Resume context
+                await initAudio();
                 await audio.play();
                 intro.style.display = 'none';
                 lyricsContainer.style.display = 'block';
                 equalizer.style.display = 'flex';
+                allowTouchParticles = true;  // ¡ACTIVA los destellos al tocar!
                 animateEqualizer();
                 syncLyrics();
             } catch (err) {
-                console.log('Error play:', err);
-                status.textContent = "Toca de nuevo (o mantén presionado) para activar el sonido – Chrome Android a veces necesita un segundo intento 🔥";
+                console.log('Error:', err);
+                status.textContent = "Toca de nuevo (o mantén presionado) – Android/Chrome necesita confirmación para el sonido";
                 status.style.display = 'block';
-                // Auto-retry después de 300ms si falla
-                setTimeout(() => {
-                    audio.play().catch(() => {});
-                }, 300);
+                setTimeout(() => audio.play().catch(() => {}), 300);
             }
         }
 
-        // Listeners en toda la intro + botón
-        intro.addEventListener('touchstart', startPlayback, { once: true });  // once para no repetir
+        // Triggers para audio
+        intro.addEventListener('touchstart', startPlayback, { once: true });
         intro.addEventListener('click', startPlayback, { once: true });
         document.getElementById('play-btn').addEventListener('touchstart', startPlayback, { once: true });
 

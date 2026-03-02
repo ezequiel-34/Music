@@ -28,6 +28,11 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            transition: opacity 0.5s ease;
+        }
+        #intro.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
         #intro h1 {
             font-size: 2.2em;
@@ -65,6 +70,7 @@
             max-width: 90%;
             z-index: 10;
             line-height: 1.5;
+            position: relative;
         }
         .highlight {
             color: #ff69b4;
@@ -131,13 +137,15 @@
         let analyser = null;
         let source = null;
         let particles = [];
-        let allowTouchParticles = false;  // Solo true después de reproducir
+        let allowTouchParticles = false;
 
-        // Letras (completa con tus tiempos reales)
+        // Letras - completa con tus tiempos reales para que sync bien
         const lyrics = [
             { time: 0, text: "Reina... lejana... pero tan cerca en mi mente...\n" },
             { time: 5, text: "Ansias que no paran... vení...\n" },
-            // ... agrega el resto aquí ...
+            { time: 10, text: "De lejos te veo, en la pantalla tu luz,\n" },
+            { time: 15, text: "Tu mirada me quema, me deja sin cruz.\n" },
+            // ... agrega TODAS las líneas que faltan ...
             { time: 180, text: "Mi reina lejana... de lejos te amo...\n" }
         ];
         let currentLine = 0;
@@ -164,7 +172,6 @@
             }
         }
 
-        // Coronitas cayendo siempre de fondo
         for (let i = 0; i < 25; i++) {
             particles.push(new Particle(Math.random() * canvas.width, Math.random() * canvas.height));
         }
@@ -180,7 +187,6 @@
         }
         animateParticles();
 
-        // Destellos SOLO cuando allowTouchParticles = true (después de reproducir)
         function addTouchParticles(e) {
             if (!allowTouchParticles) return;
             e.preventDefault();
@@ -198,7 +204,6 @@
         document.addEventListener('touchstart', addTouchParticles, { passive: false });
         document.addEventListener('click', addTouchParticles);
 
-        // Inicializar AudioContext
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -240,7 +245,7 @@
                         lyricsContainer.innerHTML += '<br>';
                         currentLine++;
                     }
-                }, 60);
+                }, 60);  // Ajusta este 60 si las letras aparecen muy rápido/lento
             }
             requestAnimationFrame(syncLyrics);
         }
@@ -249,25 +254,43 @@
             status.style.display = 'none';
             try {
                 await initAudio();
-                await audio.play();
-                intro.style.display = 'none';
+                const playPromise = audio.play();
+                
+                // ¡Forzamos ocultar intro INMEDIATAMENTE!
+                intro.classList.add('hidden');
                 lyricsContainer.style.display = 'block';
                 equalizer.style.display = 'flex';
-                allowTouchParticles = true;  // ¡ACTIVA los destellos al tocar!
+                allowTouchParticles = true;
                 animateEqualizer();
-                syncLyrics();
+                syncLyrics();  // Iniciamos el loop de letras ya
+
+                await playPromise;  // Esperamos confirmación del play
+
+                // Por si acaso, chequeamos que esté realmente reproduciendo
+                if (audio.paused) {
+                    throw new Error("Audio paused after play");
+                }
             } catch (err) {
-                console.log('Error:', err);
-                status.textContent = "Toca de nuevo (o mantén presionado) – Android/Chrome necesita confirmación para el sonido";
+                console.log('Error en play:', err);
+                intro.classList.remove('hidden');  // Volvemos a mostrar si falla
+                status.textContent = "Toca otra vez – Chrome a veces necesita un segundo intento";
                 status.style.display = 'block';
-                setTimeout(() => audio.play().catch(() => {}), 300);
+                setTimeout(() => audio.play().catch(() => {}), 400);
             }
         }
 
-        // Triggers para audio
-        intro.addEventListener('touchstart', startPlayback, { once: true });
-        intro.addEventListener('click', startPlayback, { once: true });
-        document.getElementById('play-btn').addEventListener('touchstart', startPlayback, { once: true });
+        // Triggers
+        intro.addEventListener('touchstart', startPlayback, { once: false });  // Permitimos múltiples toques
+        intro.addEventListener('click', startPlayback, { once: false });
+        document.getElementById('play-btn').addEventListener('touchstart', startPlayback, { once: false });
+
+        // Backup: si la música empieza a sonar sin que ocultemos (raro), forzamos ocultar
+        audio.addEventListener('playing', () => {
+            intro.classList.add('hidden');
+            lyricsContainer.style.display = 'block';
+            equalizer.style.display = 'flex';
+            allowTouchParticles = true;
+        });
 
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
